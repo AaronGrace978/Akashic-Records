@@ -1,0 +1,20 @@
+{
+  "name": "akashic-records",
+  "productName": "Akashic Records",
+  "version": "1.0.0",
+  "description": "An Electron oracle: DLLM static becoming meaning, voices from the records.",
+  "main": "electron/main.js",
+  "author": "Seeker",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AaronGrace978/Akashic-Records.git"
+  },
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^37.3.1"
+  }
+}
