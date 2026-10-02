@@ -151,6 +151,7 @@ button, input, textarea, select { font: inherit; color: inherit; }
 }
 
 .ghost:hover { color: var(--gold); border-color: var(--line); }
+.ghost:disabled { opacity: 0.35; pointer-events: none; }
 .ghost.icon { padding: 6px 8px; font-size: 16px; line-height: 1; }
 
 .win-btns { display: flex; margin-left: 8px; }
@@ -502,6 +503,166 @@ body.opened .sigil {
 }
 
 body.thinking #field { filter: contrast(1.15) saturate(1.2); }
+
+#sky {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  display: block;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.9s ease;
+}
+
+body.sky-open #sky {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+body.sky-open .grain,
+body.sky-open .vignette,
+body.sky-open .scanlines {
+  z-index: 5;
+}
+
+body.sky-open .scanlines { opacity: 0.16; }
+body.sky-open .grain { opacity: 0.045; }
+
+body.sky-open #stage,
+body.sky-open .composer-wrap {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#stage, .composer-wrap { transition: opacity 0.6s ease; }
+
+.natal {
+  position: fixed;
+  z-index: 46;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(460px, calc(100vw - 32px));
+  max-height: calc(100vh - 72px);
+  overflow-y: auto;
+  background: linear-gradient(180deg, rgba(10, 10, 16, 0.97), rgba(6, 6, 10, 0.98));
+  border: 1px solid var(--line);
+  padding: 28px 26px 24px;
+  backdrop-filter: blur(18px);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+}
+
+.natal .split { grid-template-columns: 1fr 1fr; }
+
+.natal .optional {
+  letter-spacing: 0.12em;
+  opacity: 0.7;
+}
+
+.natal-note {
+  margin-top: 14px;
+  font-size: 14px;
+  font-style: italic;
+  color: var(--mute);
+  line-height: 1.45;
+}
+
+#natal-date, #natal-time { color-scheme: dark; }
+
+#sky-hud {
+  position: fixed;
+  z-index: 16;
+  left: 0;
+  right: 0;
+  bottom: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 0 20px;
+  pointer-events: none;
+}
+
+.sky-kicker {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--mute);
+  margin-bottom: 8px;
+}
+
+#sky-title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(22px, 4vw, 42px);
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--gold);
+  max-width: 92vw;
+  line-height: 1.15;
+  text-shadow: 0 0 28px rgba(0, 0, 0, 0.85), 0 0 36px rgba(228, 194, 122, 0.22);
+}
+
+#sky-title.swap { animation: skyin 0.8s ease; }
+
+@keyframes skyin {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+#sky-caption {
+  max-width: 44rem;
+  margin-top: 10px;
+  font-size: clamp(16px, 2vw, 20px);
+  font-style: italic;
+  color: var(--ink);
+  text-shadow: 0 0 16px rgba(0, 0, 0, 0.9);
+  line-height: 1.4;
+}
+
+.sky-signs {
+  display: flex;
+  gap: 28px;
+  margin-top: 16px;
+}
+
+.sky-signs span {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+
+.sky-signs strong {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.sky-signs .moon strong { color: var(--cyan); }
+.sky-signs .rise strong { color: var(--violet); }
+
+.sky-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  pointer-events: auto;
+}
+
+@media (max-height: 720px) {
+  #sky-hud { bottom: 14px; }
+  #sky-caption { font-size: 15px; }
+  .sky-signs { margin-top: 8px; }
+}
 
 body.revealing .boot-title {
   animation: glitch 0.4s steps(2) infinite;

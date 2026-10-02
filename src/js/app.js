@@ -24,10 +24,28 @@
   const $ = (id) => document.getElementById(id);
 
   const field = new window.AkashicField($("field"));
+  const sky = new window.NatalSky($("sky"));
   const records = new window.AkashicState.Records();
+  const PLACES = [
+    { id: "none", label: "Unspecified — face the sun" },
+    { id: "nyc", label: "New York", lat: 40.7128, lon: -74.006, timeZone: "America/New_York" },
+    { id: "london", label: "London", lat: 51.5074, lon: -0.1278, timeZone: "Europe/London" },
+    { id: "paris", label: "Paris", lat: 48.8566, lon: 2.3522, timeZone: "Europe/Paris" },
+    { id: "cairo", label: "Cairo", lat: 30.0444, lon: 31.2357, timeZone: "Africa/Cairo" },
+    { id: "lagos", label: "Lagos", lat: 6.5244, lon: 3.3792, timeZone: "Africa/Lagos" },
+    { id: "mumbai", label: "Mumbai", lat: 19.076, lon: 72.8777, timeZone: "Asia/Kolkata" },
+    { id: "tokyo", label: "Tokyo", lat: 35.6762, lon: 139.6503, timeZone: "Asia/Tokyo" },
+    { id: "sydney", label: "Sydney", lat: -33.8688, lon: 151.2093, timeZone: "Australia/Sydney" },
+    { id: "mexico", label: "Mexico City", lat: 19.4326, lon: -99.1332, timeZone: "America/Mexico_City" },
+    { id: "sao", label: "São Paulo", lat: -23.5505, lon: -46.6333, timeZone: "America/Sao_Paulo" },
+    { id: "reykjavik", label: "Reykjavík", lat: 64.1466, lon: -21.9426, timeZone: "Atlantic/Reykjavik" },
+    { id: "custom", label: "Custom coordinates" },
+  ];
+
   let settings = null;
   let busy = false;
   let unsubs = [];
+  let booted = false;
 
   function providerLabel(id) {
     return PROVIDERS.find((p) => p.id === id)?.label || id;
@@ -99,6 +117,8 @@
       { speed: 1.15 }
     );
     $("prompt").focus();
+    $("btn-sky").disabled = false;
+    booted = true;
   }
 
   function sleep(ms) {
@@ -240,6 +260,7 @@
   }
 
   function openSettings() {
+    closeNatal();
     $("settings").hidden = false;
     $("settings-mask").hidden = false;
     paintSettings();
@@ -338,8 +359,102 @@
     }, 700);
   }
 
+  function fillPlaces() {
+    const sel = $("natal-place");
+    for (const place of PLACES) {
+      const option = document.createElement("option");
+      option.value = place.id;
+      option.textContent = place.label;
+      sel.appendChild(option);
+    }
+  }
+
+  function selectedPlace() {
+    const id = $("natal-place").value;
+    if (id === "custom") {
+      const lat = $("natal-lat").value.trim();
+      const lon = $("natal-lon").value.trim();
+      return {
+        lat: lat === "" ? null : Number(lat),
+        lon: lon === "" ? null : Number(lon),
+        place: "custom place",
+        timeZone: null,
+      };
+    }
+    const preset = PLACES.find((place) => place.id === id);
+    if (!preset || preset.lat == null) return { lat: null, lon: null, place: "", timeZone: null };
+    return { lat: preset.lat, lon: preset.lon, place: preset.label, timeZone: preset.timeZone };
+  }
+
+  function openNatal() {
+    if (!booted) return;
+    closeSettings();
+    $("natal").hidden = false;
+    $("natal-mask").hidden = false;
+    $("natal-status").textContent = "";
+    $("natal-name").focus();
+  }
+
+  function closeNatal() {
+    $("natal").hidden = true;
+    $("natal-mask").hidden = true;
+  }
+
+  function launchSky() {
+    if ($("natal-place").value === "custom") {
+      const lat = $("natal-lat").value.trim();
+      const lon = $("natal-lon").value.trim();
+      if (!lat || !lon) {
+        $("natal-status").textContent = "A custom place needs latitude and longitude.";
+        return;
+      }
+    }
+    const where = selectedPlace();
+    const chart = sky.open({
+      name: $("natal-name").value,
+      date: $("natal-date").value,
+      time: $("natal-time").value,
+      lat: where.lat,
+      lon: where.lon,
+      place: where.place,
+      timeZone: where.timeZone,
+      veilOpen: records.opened,
+    });
+    if (chart.error) {
+      $("natal-status").textContent = chart.error;
+      return;
+    }
+    closeNatal();
+    $("btn-sky").textContent = "Return";
+    field.set({ think: 1, meaning: 0.42, records: records.opened ? 0.85 : 0.2 });
+  }
+
+  async function closeSky() {
+    if (!document.body.classList.contains("sky-open")) return;
+    const line = sky.summary();
+    sky.close();
+    $("btn-sky").textContent = "Sky";
+    field.set({
+      think: 0,
+      meaning: records.opened ? 0.7 : 0.22,
+      records: records.opened ? 1 : 0,
+    });
+    if (!line || $("thread").hidden) return;
+    if (busy) {
+      setHint(line);
+      return;
+    }
+    const msg = addMessage("assistant", records.speaker());
+    await window.DLLM.denoiseInto(msg.body, line, { speed: 1.12 });
+    records.push("assistant", line);
+  }
+
   async function newSession() {
     if (busy) window.akasha.chat.abort();
+    if (document.body.classList.contains("sky-open")) {
+      sky.close();
+      $("btn-sky").textContent = "Sky";
+    }
     records.reset();
     $("thread").innerHTML = "";
     field.set({ meaning: 0.16, records: 0, think: 0 });
@@ -374,6 +489,21 @@
       send($("prompt").value);
     }
   });
+  $("btn-sky").addEventListener("click", () => {
+    if (document.body.classList.contains("sky-open")) closeSky();
+    else openNatal();
+  });
+  $("btn-natal-close").addEventListener("click", closeNatal);
+  $("natal-mask").addEventListener("click", closeNatal);
+  $("natal-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    launchSky();
+  });
+  $("natal-place").addEventListener("change", () => {
+    $("natal-custom").hidden = $("natal-place").value !== "custom";
+  });
+  $("sky-closer").addEventListener("click", () => sky.advance());
+  $("sky-return").addEventListener("click", () => closeSky());
   $("btn-settings").addEventListener("click", openSettings);
   $("btn-settings-close").addEventListener("click", closeSettings);
   $("settings-mask").addEventListener("click", closeSettings);
@@ -388,12 +518,21 @@
     $("temp-val").textContent = Number(e.target.value).toFixed(2);
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeSettings();
+    if (e.key === "Escape") {
+      if (document.body.classList.contains("sky-open")) {
+        closeSky();
+        return;
+      }
+      closeNatal();
+      closeSettings();
+    }
     if (e.key === "," && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       openSettings();
     }
   });
+
+  fillPlaces();
 
   (async () => {
     settings = await window.akasha.settings.get();

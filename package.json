@@ -12,7 +12,8 @@
   },
   "scripts": {
     "start": "electron .",
-    "dev": "electron ."
+    "dev": "electron .",
+    "test": "node --test test/astro.test.mjs"
   },
   "devDependencies": {
     "electron": "^37.3.1"
