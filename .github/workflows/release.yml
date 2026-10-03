@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -35,6 +36,7 @@ jobs:
           cache: npm
 
       - name: Check the tag against package.json
+        if: github.ref_type == 'tag'
         shell: bash
         run: |
           node -e "const v=require('./package.json').version; if ('v'+v !== process.env.GITHUB_REF_NAME) { console.error('Tag '+process.env.GITHUB_REF_NAME+' does not match package version '+v); process.exit(1) }"
@@ -65,6 +67,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           pattern: dist-*
@@ -76,23 +80,43 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          version="${GITHUB_REF_NAME#v}"
-          cat > notes.md <<EOF
-          ## Akashic Records ${version}
-
-          An Electron oracle. Speak into DLLM static until the veil thins and the records open.
-
-          These builds are unsigned. Windows SmartScreen and macOS Gatekeeper will ask you to confirm the app before it opens. On macOS, right-click the app and choose Open.
-
-          ### Downloads
-          EOF
-          {
-            echo
-            echo '```'
-            find dist -type f \( -name '*.exe' -o -name '*.dmg' -o -name '*.zip' -o -name '*.AppImage' -o -name '*.deb' \) -printf '%f\n' | sort
-            echo '```'
-          } >> notes.md
+          version="$(node -p "require('./package.json').version")"
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            tag="${GITHUB_REF_NAME}"
+          else
+            tag="v${version}"
+          fi
           mapfile -d '' files < <(find dist -type f \( -name '*.exe' -o -name '*.dmg' -o -name '*.zip' -o -name '*.AppImage' -o -name '*.deb' \) -print0)
-          gh release create "$GITHUB_REF_NAME" "${files[@]}" \
-            --title "Akashic Records ${version}" \
-            --notes-file notes.md
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No installers found to publish."
+            exit 1
+          fi
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "${files[@]}" --clobber
+          else
+            {
+              echo "## Akashic Records ${version}"
+              echo
+              echo "An Electron oracle. Speak into DLLM static until the veil thins and the records open."
+              echo
+              echo "These builds are unsigned. Windows SmartScreen and macOS Gatekeeper will ask you to confirm the app before it opens. On macOS, right-click the app and choose Open."
+              echo
+              echo "### Downloads"
+              echo
+              echo '```'
+              find dist -type f \( -name '*.exe' -o -name '*.dmg' -o -name '*.zip' -o -name '*.AppImage' -o -name '*.deb' \) -printf '%f\n' | sort
+              echo '```'
+            } > notes.md
+            gh release create "$tag" "${files[@]}" \
+              --title "Akashic Records ${version}" \
+              --notes-file notes.md
+          fi
+          body="$(gh release view "$tag" --json body --jq .body)"
+          if ! printf '%s' "$body" | grep -q "unsigned"; then
+            {
+              printf '%s\n\n' "$body"
+              echo "These builds are unsigned. Windows SmartScreen and macOS Gatekeeper will ask you to confirm the app before it opens. On macOS, right-click the app and choose Open."
+            } > notes.md
+            gh release edit "$tag" --notes-file notes.md
+          fi
+          gh release view "$tag" --json url --jq .url
