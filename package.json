@@ -13,9 +13,70 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron .",
-    "test": "node --test test/astro.test.mjs test/library.test.mjs test/records.test.mjs"
+    "test": "node --test test/astro.test.mjs test/library.test.mjs test/records.test.mjs",
+    "dist": "electron-builder --publish never",
+    "dist:win": "electron-builder --win --x64 --arm64 --publish never",
+    "dist:mac": "electron-builder --mac --universal --publish never",
+    "dist:linux": "electron-builder --linux --x64 --arm64 --publish never"
   },
   "devDependencies": {
-    "electron": "^37.3.1"
+    "electron": "^37.3.1",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.akashic.records",
+    "productName": "Akashic Records",
+    "executableName": "akashic-records",
+    "copyright": "Copyright © 2026 Seeker",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**/*",
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "win": {
+      "icon": "assets/icon.png",
+      "target": [
+        { "target": "nsis", "arch": ["x64", "arm64"] },
+        { "target": "portable", "arch": ["x64", "arm64"] }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "Akashic Records",
+      "artifactName": "Akashic-Records-${version}-win-${arch}-setup.${ext}"
+    },
+    "portable": {
+      "artifactName": "Akashic-Records-${version}-win-${arch}-portable.${ext}"
+    },
+    "mac": {
+      "icon": "assets/icon.png",
+      "category": "public.app-category.entertainment",
+      "identity": null,
+      "target": [
+        { "target": "dmg", "arch": ["universal"] },
+        { "target": "zip", "arch": ["universal"] }
+      ],
+      "artifactName": "Akashic-Records-${version}-mac-${arch}.${ext}"
+    },
+    "dmg": {
+      "artifactName": "Akashic-Records-${version}-mac-${arch}.${ext}"
+    },
+    "linux": {
+      "icon": "assets/icon.png",
+      "category": "Utility",
+      "synopsis": "An oracle of DLLM static and the records.",
+      "target": [
+        { "target": "AppImage", "arch": ["x64", "arm64"] },
+        { "target": "deb", "arch": ["x64", "arm64"] }
+      ],
+      "artifactName": "Akashic-Records-${version}-linux-${arch}.${ext}"
+    }
   }
 }

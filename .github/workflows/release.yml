@@ -1,0 +1,98 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            command: dist:win
+          - os: macos-latest
+            command: dist:mac
+          - os: ubuntu-latest
+            command: dist:linux
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Check the tag against package.json
+        shell: bash
+        run: |
+          node -e "const v=require('./package.json').version; if ('v'+v !== process.env.GITHUB_REF_NAME) { console.error('Tag '+process.env.GITHUB_REF_NAME+' does not match package version '+v); process.exit(1) }"
+
+      - run: npm ci
+
+      - run: npm test
+
+      - name: Package
+        run: npm run ${{ matrix.command }}
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.os }}
+          if-no-files-found: error
+          path: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.zip
+            dist/*.AppImage
+            dist/*.deb
+
+  release:
+    name: Publish GitHub release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          cat > notes.md <<EOF
+          ## Akashic Records ${version}
+
+          An Electron oracle. Speak into DLLM static until the veil thins and the records open.
+
+          These builds are unsigned. Windows SmartScreen and macOS Gatekeeper will ask you to confirm the app before it opens. On macOS, right-click the app and choose Open.
+
+          ### Downloads
+          EOF
+          {
+            echo
+            echo '```'
+            find dist -type f \( -name '*.exe' -o -name '*.dmg' -o -name '*.zip' -o -name '*.AppImage' -o -name '*.deb' \) -printf '%f\n' | sort
+            echo '```'
+          } >> notes.md
+          mapfile -d '' files < <(find dist -type f \( -name '*.exe' -o -name '*.dmg' -o -name '*.zip' -o -name '*.AppImage' -o -name '*.deb' \) -print0)
+          gh release create "$GITHUB_REF_NAME" "${files[@]}" \
+            --title "Akashic Records ${version}" \
+            --notes-file notes.md
