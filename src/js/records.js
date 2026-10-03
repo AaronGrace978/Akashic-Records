@@ -40,19 +40,33 @@ Address the seeker as seeker when it serves the music of the line. Do not grovel
       return this.opened ? "The Records" : "Threshold";
     }
 
-    scoreUser(text) {
-      const q = text.toLowerCase();
-      let add = 12;
-      for (const h of SEEK_HINTS) if (q.includes(h)) add += 8;
-      if (q.length > 180) add += 6;
-      if (q.includes("open") && (q.includes("record") || q.includes("veil"))) add += 18;
-      this.resonance = Math.min(THRESHOLD, this.resonance + add);
+    gain(amount) {
+      this.resonance = Math.min(THRESHOLD, this.resonance + amount);
       return this.resonance;
     }
 
+    scoreUser(text) {
+      const q = text.toLowerCase();
+      let add = 4;
+      if (q.length > 80) add += 3;
+      if (q.length > 240) add += 6;
+      let hints = 0;
+      for (const h of SEEK_HINTS) if (q.includes(h)) hints += 4;
+      add += Math.min(12, hints);
+      if (q.includes("open") && (q.includes("record") || q.includes("veil"))) add += 10;
+      return this.gain(add);
+    }
+
     seek() {
-      this.resonance = Math.min(THRESHOLD, this.resonance + 34);
-      return this.resonance;
+      return this.gain(14);
+    }
+
+    witnessSky() {
+      return this.gain(22);
+    }
+
+    noteReturn() {
+      return this.gain(8);
     }
 
     get ready() {
@@ -71,12 +85,23 @@ Address the seeker as seeker when it serves the music of the line. Do not grovel
     }
 
     messages() {
-      return [{ role: "system", content: this.system() }, ...this.history];
+      return [
+        { role: "system", content: this.system() },
+        ...this.history.map((m) => ({ role: m.role, content: m.content })),
+      ];
     }
 
-    push(role, content) {
-      this.history.push({ role, content });
+    push(role, content, extra = {}) {
+      const entry = {
+        role,
+        content,
+        who: extra.who || (role === "user" ? "Seeker" : this.speaker()),
+        think: extra.think || "",
+        pinned: Boolean(extra.pinned),
+      };
+      this.history.push(entry);
       if (this.history.length > 40) this.history = this.history.slice(-40);
+      return entry;
     }
   }
 

@@ -1,7 +1,8 @@
-const { app, BrowserWindow, ipcMain, safeStorage, shell } = require("electron");
+const { app, BrowserWindow, ipcMain, safeStorage, shell, dialog } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const { streamChat, listModels } = require("./providers");
+const { sanitizeSession, upsertSession, listShelf, mapPlaces, tabletName } = require("./library");
 
 const DEFAULT_SETTINGS = {
   provider: "ollama-cloud",
@@ -20,7 +21,16 @@ const DEFAULT_SETTINGS = {
     openrouter: "",
     custom: "",
   },
+  hush: false,
+  veil: { resonance: 0, opened: false },
 };
+
+function normalizeVeil(veil) {
+  return {
+    resonance: Math.max(0, Math.min(100, Number(veil?.resonance) || 0)),
+    opened: Boolean(veil?.opened),
+  };
+}
 
 let mainWindow = null;
 let abortController = null;
@@ -58,10 +68,35 @@ function loadSettings() {
     if (raw.keys) {
       for (const k of Object.keys(keys)) keys[k] = decrypt(raw.keys[k]);
     }
-    return { ...DEFAULT_SETTINGS, ...raw, keys };
+    return {
+      ...DEFAULT_SETTINGS,
+      ...raw,
+      keys,
+      hush: Boolean(raw.hush),
+      veil: normalizeVeil(raw.veil),
+    };
   } catch {
-    return { ...DEFAULT_SETTINGS, keys: { ...DEFAULT_SETTINGS.keys } };
+    return { ...DEFAULT_SETTINGS, keys: { ...DEFAULT_SETTINGS.keys }, veil: { ...DEFAULT_SETTINGS.veil } };
   }
+}
+
+function shelfPath() {
+  return path.join(app.getPath("userData"), "shelf.json");
+}
+
+function loadShelf() {
+  try {
+    const raw = JSON.parse(fs.readFileSync(shelfPath(), "utf8"));
+    const sessions = Array.isArray(raw.sessions) ? raw.sessions.map(sanitizeSession).filter(Boolean) : [];
+    return { activeId: raw.activeId || null, sessions };
+  } catch {
+    return { activeId: null, sessions: [] };
+  }
+}
+
+function writeShelf(shelf) {
+  fs.mkdirSync(path.dirname(shelfPath()), { recursive: true });
+  fs.writeFileSync(shelfPath(), JSON.stringify(shelf));
 }
 
 function saveSettings(settings) {
@@ -142,8 +177,90 @@ ipcMain.handle("settings:set", (_e, patch) => {
       next.keys[k] = v.trim();
     }
   }
+  if (patch.veil) next.veil = normalizeVeil(patch.veil);
+  if ("hush" in patch) next.hush = Boolean(patch.hush);
   saveSettings(next);
   return publicSettings(next);
+});
+
+ipcMain.handle("shelf:list", () => listShelf(loadShelf()));
+
+ipcMain.handle("shelf:active", () => {
+  const shelf = loadShelf();
+  if (!shelf.activeId) return null;
+  return shelf.sessions.find((session) => session.id === shelf.activeId) || null;
+});
+
+ipcMain.handle("shelf:get", (_e, id) => {
+  const shelf = loadShelf();
+  return shelf.sessions.find((session) => session.id === id) || null;
+});
+
+ipcMain.handle("shelf:save", (_e, session) => {
+  const next = upsertSession(loadShelf(), session);
+  writeShelf(next);
+  return listShelf(next);
+});
+
+ipcMain.handle("shelf:remove", (_e, id) => {
+  const shelf = loadShelf();
+  const next = {
+    activeId: shelf.activeId === id ? null : shelf.activeId,
+    sessions: shelf.sessions.filter((session) => session.id !== id),
+  };
+  writeShelf(next);
+  return listShelf(next);
+});
+
+ipcMain.handle("shelf:clear-active", () => {
+  const shelf = loadShelf();
+  shelf.activeId = null;
+  writeShelf(shelf);
+  return listShelf(shelf);
+});
+
+ipcMain.on("state:flush", (e, payload) => {
+  try {
+    if (payload?.veil) {
+      const current = loadSettings();
+      current.veil = normalizeVeil(payload.veil);
+      saveSettings(current);
+    }
+    if (payload?.session) writeShelf(upsertSession(loadShelf(), payload.session));
+    else if (payload?.clearActive) {
+      const shelf = loadShelf();
+      shelf.activeId = null;
+      writeShelf(shelf);
+    }
+    e.returnValue = true;
+  } catch {
+    e.returnValue = false;
+  }
+});
+
+ipcMain.handle("places:search", async (_e, query) => {
+  const q = String(query || "").trim().slice(0, 80);
+  if (q.length < 2) return [];
+  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=6&language=en&format=json`;
+  const res = await fetch(url, {
+    headers: { "User-Agent": "AkashicRecords/1.0" },
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) throw new Error("The atlas could not be reached.");
+  return mapPlaces(await res.json());
+});
+
+ipcMain.handle("tablet:write", async (_e, payload) => {
+  const text = String(payload?.text || "");
+  if (!text.trim()) return { ok: false, empty: true };
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: "Keep this tablet",
+    defaultPath: tabletName(payload?.title),
+    filters: [{ name: "Text", extensions: ["txt"] }],
+  });
+  if (result.canceled || !result.filePath) return { ok: false, canceled: true };
+  fs.writeFileSync(result.filePath, text, "utf8");
+  return { ok: true, path: result.filePath };
 });
 
 ipcMain.handle("models:list", async (_e, provider) => {

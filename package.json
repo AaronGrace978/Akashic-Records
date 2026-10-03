@@ -13,7 +13,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron .",
-    "test": "node --test test/astro.test.mjs"
+    "test": "node --test test/astro.test.mjs test/library.test.mjs test/records.test.mjs"
   },
   "devDependencies": {
     "electron": "^37.3.1"

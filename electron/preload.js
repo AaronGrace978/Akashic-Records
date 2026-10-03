@@ -13,6 +13,21 @@ contextBridge.exposeInMainWorld("akasha", {
   models: {
     list: (provider) => ipcRenderer.invoke("models:list", provider),
   },
+  shelf: {
+    list: () => ipcRenderer.invoke("shelf:list"),
+    active: () => ipcRenderer.invoke("shelf:active"),
+    get: (id) => ipcRenderer.invoke("shelf:get", id),
+    save: (session) => ipcRenderer.invoke("shelf:save", session),
+    remove: (id) => ipcRenderer.invoke("shelf:remove", id),
+    clearActive: () => ipcRenderer.invoke("shelf:clear-active"),
+    flush: (payload) => ipcRenderer.sendSync("state:flush", payload),
+  },
+  places: {
+    search: (query) => ipcRenderer.invoke("places:search", query),
+  },
+  tablet: {
+    write: (payload) => ipcRenderer.invoke("tablet:write", payload),
+  },
   chat: {
     start: (payload) => ipcRenderer.invoke("chat:start", payload),
     abort: () => ipcRenderer.send("chat:abort"),

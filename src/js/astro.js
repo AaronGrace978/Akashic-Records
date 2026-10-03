@@ -680,12 +680,14 @@
     return `the hour of ${poss} birth`;
   }
 
-  function skyline(sunSign, among, agrees, moonSign, rising) {
+  function skyline(sunSign, among, agrees, moonSign, rising, live) {
     const sunLine = agrees
       ? `The sun stands in ${sunSign.name}, and those stars answer.`
-      : `Born under ${sunSign.name}. The sun's light rests among the stars of ${among.name}.`;
+      : live
+        ? `The sun is in ${sunSign.name}. Its light rests among the stars of ${among.name}.`
+        : `Born under ${sunSign.name}. The sun's light rests among the stars of ${among.name}.`;
     let line = `${sunLine} The moon is ${moonSign.name}.`;
-    if (rising) line += ` ${rising.name} was rising.`;
+    if (rising) line += live ? ` ${rising.name} is rising.` : ` ${rising.name} was rising.`;
     return line;
   }
 
@@ -732,6 +734,7 @@
     const name = cleanName(input.name);
     const place = String(input.place || "").trim();
     const timeZone = input.timeZone || null;
+    const live = input.mode === "now";
     const jd = toJulian(year, month, day, hour, minute, lon || 0, lat == null ? null : timeZone);
 
     const sunLon = sunLongitude(jd);
@@ -780,13 +783,17 @@
     };
 
     const when = formatWhen(date, timed ? time : "", place);
-    const line = skyline(sunSign, among.constellation, agrees, moonSign, rising ? rising.sign : null);
-    const ending = name === "The Subject"
-      ? "The sky gathered into the one who was born."
-      : `The sky gathered, and the subject was ${name}.`;
+    const line = skyline(sunSign, among.constellation, agrees, moonSign, rising ? rising.sign : null, live);
+    const ending = live
+      ? "The sky gathered into the hour that is."
+      : name === "The Subject"
+        ? "The sky gathered into the one who was born."
+        : `The sky gathered, and the subject was ${name}.`;
+    const summary = `${when}. ${line} ${ending}`;
 
     return {
       error: null,
+      mode: live ? "now" : "birth",
       name,
       when,
       place,
@@ -814,25 +821,43 @@
       camStart,
       camEnd,
       fov,
+      brief: {
+        mode: live ? "now" : "birth",
+        name,
+        when,
+        place,
+        summary,
+        sun: sunSign.name,
+        sunStars: agrees ? sunSign.name : among.constellation.name,
+        sunAgrees: agrees,
+        moon: moonSign.name,
+        rising: rising ? rising.sign.name : null,
+      },
       copy: {
         warpKicker: "Departure",
         warpTitle: "Outward",
-        warpCaption: `The static tears. Distance pours through, toward ${birthHour(name)}.`,
+        warpCaption: live
+          ? "The static tears. Distance pours through, toward the sky of this hour."
+          : `The static tears. Distance pours through, toward ${birthHour(name)}.`,
         slewKicker: "The long light",
         slewTitle: sunSign.name,
-        slewCaption: name === "The Subject"
-          ? "Seeking the stars that stood when this life began."
-          : `Seeking the stars that stood when ${name} was born.`,
-        chartKicker: "Natal sky",
+        slewCaption: live
+          ? "Seeking the stars that stand over this hour."
+          : name === "The Subject"
+            ? "Seeking the stars that stood when this life began."
+            : `Seeking the stars that stood when ${name} was born.`,
+        chartKicker: live ? "This hour" : "Natal sky",
         chartTitle: sunSign.name,
         chartCaption: `${line} ${when}.`,
-        subjectKicker: "The subject",
+        subjectKicker: live ? "The hour" : "The subject",
         subjectTitle: name,
-        subjectCaption: "The camera falls inward. The sky gathers into a life.",
-        holdKicker: "Held in the hour",
+        subjectCaption: live
+          ? "The camera falls inward. The sky gathers into this hour."
+          : "The camera falls inward. The sky gathers into a life.",
+        holdKicker: live ? "Held in the present" : "Held in the hour",
         holdTitle: name,
-        holdCaption: `${when}. ${line} ${ending}`,
-        summary: `${when}. ${line} ${ending}`,
+        holdCaption: summary,
+        summary,
       },
     };
   }

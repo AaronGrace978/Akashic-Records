@@ -322,6 +322,10 @@
       return this.chart && !this.chart.error ? this.chart.copy.summary : "";
     }
 
+    reading() {
+      return this.chart && !this.chart.error ? this.chart.brief : null;
+    }
+
     advance() {
       if (!this.running || !this.edges) return;
       const t = (performance.now() - this.t0) / 1000;

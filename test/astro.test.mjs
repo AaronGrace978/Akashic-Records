@@ -66,6 +66,28 @@ test("a birth date resolves to the tropical sign and a real constellation", () =
   assert.ok(chart.fov >= 40 && chart.fov <= 68, `fov ${chart.fov}`);
 });
 
+test("the sky of this hour does not speak as if someone were being born", () => {
+  const chart = A.chartFor({
+    mode: "now",
+    name: "This hour",
+    date: "2026-10-03",
+    time: "23:10",
+    lat: 40.7128,
+    lon: -74.006,
+    place: "New York",
+    timeZone: "America/New_York",
+  });
+  assert.equal(chart.error, null);
+  assert.equal(chart.mode, "now");
+  assert.equal(chart.brief.mode, "now");
+  assert.equal(chart.brief.place, "New York");
+  assert.ok(chart.brief.rising);
+  assert.match(chart.copy.warpCaption, /this hour/i);
+  assert.match(chart.copy.chartKicker, /This hour/);
+  assert.doesNotMatch(chart.copy.summary, /born/i);
+  assert.doesNotMatch(chart.copy.subjectCaption, /life/i);
+});
+
 test("daylight time in New York is four hours behind UTC in April 1992", () => {
   const utc = A.civilToUtc(1992, 4, 17, 6, 40, "America/New_York");
   assert.equal(utc.toISOString().slice(0, 16), "1992-04-17T10:40");
