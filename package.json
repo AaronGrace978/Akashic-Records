@@ -5,6 +5,7 @@
   "description": "An Electron oracle: DLLM static becoming meaning, voices from the records.",
   "main": "electron/main.js",
   "author": "Seeker",
+  "desktopName": "akashic-records",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -72,6 +73,8 @@
       "icon": "assets/icon.png",
       "category": "Utility",
       "synopsis": "An oracle of DLLM static and the records.",
+      "maintainer": "Aaron Grace <Aaron.Grace@comcast.net>",
+      "syncDesktopName": true,
       "target": [
         { "target": "AppImage", "arch": ["x64", "arm64"] },
         { "target": "deb", "arch": ["x64", "arm64"] }
