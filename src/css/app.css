@@ -467,6 +467,23 @@ button, input, textarea, select { font: inherit; color: inherit; }
   margin: 0;
 }
 
+.voice-block {
+  margin: 22px 0 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.voice-block .check { margin-bottom: 10px; }
+
+.voice-note {
+  margin: 0 0 14px;
+  font-style: italic;
+  color: var(--mute);
+  font-size: 15px;
+}
+
+.voice-block .ghost { margin-bottom: 4px; }
+
 .solid {
   width: 100%;
   margin-top: 8px;

@@ -94,19 +94,23 @@ jobs:
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release upload "$tag" "${files[@]}" --clobber
           else
-            {
-              echo "## Akashic Records ${version}"
-              echo
-              echo "An Electron oracle. Speak into DLLM static until the veil thins and the records open."
-              echo
-              echo "These builds are unsigned. Windows SmartScreen and macOS Gatekeeper will ask you to confirm the app before it opens. On macOS, right-click the app and choose Open."
-              echo
-              echo "### Downloads"
-              echo
-              echo '```'
-              find dist -type f \( -name '*.exe' -o -name '*.dmg' -o -name '*.zip' -o -name '*.AppImage' -o -name '*.deb' \) -printf '%f\n' | sort
-              echo '```'
-            } > notes.md
+            if [ -f "notes/${tag}.md" ]; then
+              cp "notes/${tag}.md" notes.md
+            else
+              {
+                echo "## Akashic Records ${version}"
+                echo
+                echo "An Electron oracle. Speak into DLLM static until the veil thins and the records open."
+                echo
+                echo "These builds are unsigned. Windows SmartScreen and macOS Gatekeeper will ask you to confirm the app before it opens. On macOS, right-click the app and choose Open."
+                echo
+                echo "### Downloads"
+                echo
+                echo '```'
+                find dist -type f \( -name '*.exe' -o -name '*.dmg' -o -name '*.zip' -o -name '*.AppImage' -o -name '*.deb' \) -printf '%f\n' | sort
+                echo '```'
+              } > notes.md
+            fi
             gh release create "$tag" "${files[@]}" \
               --title "Akashic Records ${version}" \
               --notes-file notes.md

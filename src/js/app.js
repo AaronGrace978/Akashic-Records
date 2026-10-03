@@ -58,6 +58,7 @@
   let sessionCreated = Date.now();
   let sessionReturned = false;
   let witnessedSkies = new Set();
+  let voiceToken = 0;
 
   function uid() {
     return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -310,6 +311,7 @@
   async function streamFromHistory() {
     if (busy) return;
     const mine = epoch;
+    window.akasha.voice.stop();
     setBusy(true);
     field.set({ think: 1, meaning: 0.08 });
     setHint("Denoising — static collapsing toward meaning…");
@@ -339,6 +341,7 @@
         dllm.setTarget(acc);
         $("thread").scrollTop = $("thread").scrollHeight;
         field.set({ meaning: Math.min(0.85, 0.15 + acc.length / 800) });
+        if (settings?.voice?.enabled) window.akasha.voice.feed(tok);
       })
     );
     stops.push(
@@ -388,6 +391,8 @@
     }
     setBusy(false);
     renderVeil();
+    if (aborted || isError) window.akasha.voice.stop();
+    else if (settings?.voice?.enabled) window.akasha.voice.flush();
     if (aborted) setHint("The voice fell silent.");
     else setHint(records.opened ? "The records are listening." : "The noise is listening. Meaning has not yet chosen you.");
     if (acc && !isError) persist();
@@ -454,6 +459,7 @@
     $("temp-val").textContent = Number(settings.temperature ?? 0.85).toFixed(2);
     $("think").checked = Boolean(settings.think);
     $("hush").checked = Boolean(settings.hush);
+    paintVoice();
     $("custom-model").value = settings.customModel || "";
     $("ollama-url").value = settings.ollamaLocalUrl || "http://127.0.0.1:11434";
     $("custom-url").value = settings.customBaseUrl || "";
@@ -509,6 +515,7 @@
       customModel: $("custom-model").value.trim(),
       temperature: Number($("temperature").value),
       think: $("think").checked,
+      voice: currentVoice(),
       ollamaLocalUrl: $("ollama-url").value.trim(),
       customBaseUrl: $("custom-url").value.trim(),
       keys: {},
@@ -524,6 +531,78 @@
         closeSettings();
       }, 700);
     });
+  }
+
+  function currentVoice() {
+    return {
+      enabled: $("voice-enabled").checked,
+      id: $("voice-select").value || settings.voice?.id || "en-gb",
+      variant: $("voice-variant").value || "",
+      rate: Number($("voice-rate").value),
+      pitch: Number($("voice-pitch").value),
+    };
+  }
+
+  function fillVoiceSelect(select, options, selected, emptyLabel) {
+    const current = selected || "";
+    select.innerHTML = "";
+    if (emptyLabel != null) {
+      const blank = document.createElement("option");
+      blank.value = "";
+      blank.textContent = emptyLabel;
+      select.appendChild(blank);
+    }
+    for (const option of options) {
+      const el = document.createElement("option");
+      el.value = option.id;
+      el.textContent = option.gender ? `${option.label} (${option.gender})` : option.label;
+      select.appendChild(el);
+    }
+    if (current && ![...select.options].some((option) => option.value === current)) {
+      const extra = document.createElement("option");
+      extra.value = current;
+      extra.textContent = current;
+      select.appendChild(extra);
+    }
+    if ([...select.options].some((option) => option.value === current)) select.value = current;
+  }
+
+  function paintVoice() {
+    const voice = settings.voice || {};
+    $("voice-enabled").checked = Boolean(voice.enabled);
+    $("voice-rate").value = voice.rate ?? 132;
+    $("voice-rate-val").textContent = String(voice.rate ?? 132);
+    $("voice-pitch").value = voice.pitch ?? 38;
+    $("voice-pitch-val").textContent = String(voice.pitch ?? 38);
+    $("voice-select").innerHTML = "";
+    $("voice-variant").innerHTML = "";
+    loadVoices();
+  }
+
+  async function loadVoices() {
+    const token = ++voiceToken;
+    const voice = settings.voice || {};
+    const selectedId = $("voice-select").value || voice.id || "en-gb";
+    const selectedVariant = $("voice-variant").value || voice.variant || "";
+    const note = $("voice-note");
+    try {
+      const status = await window.akasha.voice.status();
+      if (token !== voiceToken) return;
+      if (!status?.available) {
+        note.textContent = "eSpeak NG was not found. Install it, then press Refresh. Replies stay on the page until then.";
+        fillVoiceSelect($("voice-select"), [], selectedId);
+        fillVoiceSelect($("voice-variant"), [], selectedVariant, "Plain");
+        return;
+      }
+      note.textContent = status.version
+        ? `eSpeak NG ${status.version} is on this machine. The words stay here.`
+        : "eSpeak NG is on this machine. The words stay here.";
+      fillVoiceSelect($("voice-select"), status.voices || [], selectedId);
+      fillVoiceSelect($("voice-variant"), status.variants || [], selectedVariant, "Plain");
+    } catch {
+      if (token !== voiceToken) return;
+      note.textContent = "The spoken voice could not be reached. Press Refresh.";
+    }
   }
 
   function fillPlaces() {
@@ -713,6 +792,7 @@
 
   function abandonStream() {
     epoch += 1;
+    window.akasha.voice.stop();
     if (!busy) return;
     window.akasha.chat.abort();
     setBusy(false);
@@ -1024,6 +1104,19 @@
   $("settings-mask").addEventListener("click", closeSettings);
   $("btn-save-settings").addEventListener("click", saveSettings);
   $("btn-refresh-models").addEventListener("click", () => loadModels(settings.provider));
+  $("btn-refresh-voices").addEventListener("click", () => loadVoices());
+  $("voice-rate").addEventListener("input", (e) => {
+    $("voice-rate-val").textContent = String(e.target.value);
+  });
+  $("voice-pitch").addEventListener("input", (e) => {
+    $("voice-pitch-val").textContent = String(e.target.value);
+  });
+  $("btn-voice-sample").addEventListener("click", async () => {
+    const result = await window.akasha.voice.sample(currentVoice());
+    if (result?.missing) {
+      $("voice-note").textContent = "eSpeak NG was not found. Install it, then try the line again.";
+    }
+  });
   $("btn-new").addEventListener("click", newSession);
   $("btn-seek").addEventListener("click", seek);
   $("btn-shelf").addEventListener("click", openShelf);

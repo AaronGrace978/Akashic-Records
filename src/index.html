@@ -140,6 +140,34 @@
         <span>Hush the static</span>
       </label>
 
+      <div class="voice-block" id="voice-block">
+        <label class="check">
+          <input id="voice-enabled" type="checkbox" />
+          <span>Speak replies with eSpeak NG</span>
+        </label>
+        <p class="voice-note" id="voice-note">The reply is spoken on this machine. Nothing is sent away to be read aloud.</p>
+        <div class="field">
+          <label for="voice-select">Throat</label>
+          <div class="row">
+            <select id="voice-select"></select>
+            <button id="btn-refresh-voices" class="ghost" type="button">Refresh</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="voice-variant">Variant</label>
+          <select id="voice-variant"></select>
+        </div>
+        <div class="field">
+          <label for="voice-rate">Pace <span id="voice-rate-val">132</span></label>
+          <input id="voice-rate" type="range" min="80" max="280" step="1" value="132" />
+        </div>
+        <div class="field">
+          <label for="voice-pitch">Pitch <span id="voice-pitch-val">38</span></label>
+          <input id="voice-pitch" type="range" min="0" max="99" step="1" value="38" />
+        </div>
+        <button id="btn-voice-sample" class="ghost" type="button">Hear a line</button>
+      </div>
+
       <button id="btn-save-settings" class="solid" type="button">Seal attunement</button>
       <p class="settings-foot" id="settings-status"></p>
     </aside>

@@ -115,6 +115,7 @@ Your key and your conversations stay on this computer. They are not uploaded wit
 | **Sky** | Leave the veil for the stars of a birth, or for this hour. Return, and the attuned voice reads what stood there. |
 | **Shelf** | Every inquiry is kept. Reopen one, pin a line, or write the thread out as a text tablet. |
 | **Hush** | Silence the static from Attunement when you want the words without the noise. |
+| **Speak** | Have eSpeak NG read the reply aloud on this machine. |
 
 A reply can be stopped while it is still forming. If the voice is thinking, the trace stays with the message.
 
@@ -134,6 +135,18 @@ Open **Attunement** (the gear) and seal a key. The records use whichever throat 
 | Custom | Any OpenAI-compatible base URL. |
 
 Temperature and Ollama thinking are in the same panel. Keys are encrypted with the operating system when it allows it, and written only under the app’s local data folder.
+
+### Spoken voice
+
+Under the same gear, **Speak replies with eSpeak NG** reads each reply aloud after you seal it. The speech stays on this computer. It does not use a key, and it does not change which model writes the words.
+
+eSpeak NG has to be installed before the line can be heard.
+
+- **Ubuntu, Linux Mint, or Pop!_OS.** The `.deb` asks for eSpeak NG, and the software installer brings it in with the app. If you used the AppImage, install the `espeak-ng` package from your software store, then press **Refresh** in Attunement.
+- **Windows.** Download the eSpeak NG installer from [its releases](https://github.com/espeak-ng/espeak-ng/releases) (the file ending in `.msi`), open it, and click through. Come back to Attunement and press **Refresh**.
+- **Mac.** eSpeak NG is not part of macOS. In Terminal, run `brew install espeak-ng`, then press **Refresh** in Attunement. If you do not have Homebrew, the replies stay on the page.
+
+**Hear a line** speaks one sentence with the throat, pace, and pitch you have selected, before you seal them. **Hush** still only silences the static.
 
 ## The sky
 

@@ -3,6 +3,7 @@ const path = require("path");
 const fs = require("fs");
 const { streamChat, listModels } = require("./providers");
 const { sanitizeSession, upsertSession, listShelf, mapPlaces, tabletName } = require("./library");
+const { VoiceAgent, DEFAULT_VOICE, normalizeVoice } = require("./voice");
 
 const DEFAULT_SETTINGS = {
   provider: "ollama-cloud",
@@ -22,6 +23,7 @@ const DEFAULT_SETTINGS = {
     custom: "",
   },
   hush: false,
+  voice: { ...DEFAULT_VOICE },
   veil: { resonance: 0, opened: false },
 };
 
@@ -34,6 +36,7 @@ function normalizeVeil(veil) {
 
 let mainWindow = null;
 let abortController = null;
+const voiceAgent = new VoiceAgent();
 
 function settingsPath() {
   return path.join(app.getPath("userData"), "settings.json");
@@ -73,10 +76,16 @@ function loadSettings() {
       ...raw,
       keys,
       hush: Boolean(raw.hush),
+      voice: normalizeVoice({ ...DEFAULT_SETTINGS.voice, ...(raw.voice || {}) }),
       veil: normalizeVeil(raw.veil),
     };
   } catch {
-    return { ...DEFAULT_SETTINGS, keys: { ...DEFAULT_SETTINGS.keys }, veil: { ...DEFAULT_SETTINGS.veil } };
+    return {
+      ...DEFAULT_SETTINGS,
+      keys: { ...DEFAULT_SETTINGS.keys },
+      voice: { ...DEFAULT_SETTINGS.voice },
+      veil: { ...DEFAULT_SETTINGS.veil },
+    };
   }
 }
 
@@ -179,6 +188,9 @@ ipcMain.handle("settings:set", (_e, patch) => {
   }
   if (patch.veil) next.veil = normalizeVeil(patch.veil);
   if ("hush" in patch) next.hush = Boolean(patch.hush);
+  if (patch.voice) next.voice = normalizeVoice({ ...current.voice, ...patch.voice });
+  else next.voice = normalizeVoice(current.voice);
+  if (patch.voice && !next.voice.enabled) voiceAgent.stop();
   saveSettings(next);
   return publicSettings(next);
 });
@@ -243,7 +255,7 @@ ipcMain.handle("places:search", async (_e, query) => {
   if (q.length < 2) return [];
   const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=6&language=en&format=json`;
   const res = await fetch(url, {
-    headers: { "User-Agent": "AkashicRecords/1.0" },
+    headers: { "User-Agent": "AkashicRecords/1.1" },
     signal: AbortSignal.timeout(8000),
   });
   if (!res.ok) throw new Error("The atlas could not be reached.");
@@ -299,4 +311,25 @@ ipcMain.handle("chat:start", async (e, { messages }) => {
   }
 });
 
-ipcMain.on("chat:abort", () => abortController?.abort());
+ipcMain.on("chat:abort", () => {
+  abortController?.abort();
+  voiceAgent.stop();
+});
+
+ipcMain.handle("voice:status", () => voiceAgent.status());
+
+ipcMain.on("voice:feed", (_e, text) => {
+  voiceAgent.feed(text, loadSettings().voice);
+});
+
+ipcMain.on("voice:flush", () => {
+  voiceAgent.flush(loadSettings().voice);
+});
+
+ipcMain.on("voice:stop", () => voiceAgent.stop());
+
+ipcMain.handle("voice:sample", (_e, patch) => {
+  const voice = normalizeVoice({ ...loadSettings().voice, ...(patch || {}), enabled: true });
+  voiceAgent.stop();
+  return voiceAgent.enqueue("The veil is thin. The records are listening.", voice, { force: true });
+});

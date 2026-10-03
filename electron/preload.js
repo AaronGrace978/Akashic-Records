@@ -28,6 +28,13 @@ contextBridge.exposeInMainWorld("akasha", {
   tablet: {
     write: (payload) => ipcRenderer.invoke("tablet:write", payload),
   },
+  voice: {
+    status: () => ipcRenderer.invoke("voice:status"),
+    feed: (text) => ipcRenderer.send("voice:feed", text),
+    flush: () => ipcRenderer.send("voice:flush"),
+    stop: () => ipcRenderer.send("voice:stop"),
+    sample: (options) => ipcRenderer.invoke("voice:sample", options),
+  },
   chat: {
     start: (payload) => ipcRenderer.invoke("chat:start", payload),
     abort: () => ipcRenderer.send("chat:abort"),
